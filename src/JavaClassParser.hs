@@ -1,79 +1,146 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module JavaClassParser where
 
-import           Control.Applicative             ((<$>))
+import           Control.Applicative             ((<$>), (<*>))
+import           Data.Array                      (Array, listArray, (!))
 import           Data.Attoparsec.Binary
 import           Data.Attoparsec.ByteString.Lazy
+import           Data.Bits
 import qualified Data.ByteString.Builder         as B
 import qualified Data.ByteString.Lazy            as L
+import           Data.Char
 import           Data.Word
-
-data CPEntry = CClass { nameIndex :: Word16 }
-             | CFieldRef { clsIndex :: Word16, ntIndex :: Word16 }
-             | CMethodRef { clsIndex :: Word16, ntIndex :: Word16 }
-             | CInterfaceRef { clsIndex :: Word16, ntIndex :: Word16 }
-             | CString { strIndex :: Word16 }
-             | CInt { bytes :: Word32 }
-             | CFloat { bytes :: Word32 }
-             | CLong { highBytes :: Word32, lowBytes :: Word32 }
-             | CDouble { highBytes :: Word32, lowBytes :: Word32 }
-             | CNameAndType { nameIndex :: Word16, descriptorIndex :: Word16 }
-             | CUtf8 { len :: Word16, bs :: [Word8] }
-             | CMethodHandle { refKind :: Word8, refIndex :: Word16 }
-             | CMethodType { descriptorIndex :: Word16 }
-             | CInvokeDynamic { bootstrapMethodAttrIndex :: Word16, ntIndex :: Word16 }
-             deriving (Show, Eq)
-
-data Version = Version { minor :: Word16, major :: Word16 } deriving (Show, Eq)
+import           Debug.Trace                     (trace)
+import           JvmClassTypes
+import qualified Text.Show.Pretty                as Pr
 
 testClass = "Lambdas.class"
 testClassBytes = L.readFile testClass
 
 magicP = word32be 0xCAFEBABE
-
-versinP = Version <$> (fromIntegral <$> anyWord16be)
-                  <*> (fromIntegral <$> anyWord16be)
+versinP = Version <$> anyWord16be <*> anyWord16be
 
 runParse bs = do
   case parse parseClass bs of
-    e@Fail {} -> error $ show e
+    e@Fail {} -> error $ Pr.ppShow e
     Done _ v -> v
 
 parseClass = do
   _ <- magicP
   version <- versinP
-  cpoolCount <- fromIntegral <$> anyWord16be
-  es <- count (cpoolCount - 1) parseEntry
+  cpool <- parseConstantPool
   accFlag <- anyWord16be
-  this <- anyWord16be
-  super <- anyWord16be
+  this <- parseClassName cpool
+  superClassIndex <- anyWord16be
+  let superClassName = if superClassIndex == 0
+                        then Nothing
+                        else Just $ extractClassName cpool superClassIndex
   intfCount <- anyWord16be
-  return (version, cpoolCount, accFlag, intfCount)
+  interfaces <- count (fromIntegral intfCount) (parseClassName cpool)
+  fieldCount <- anyWord16be
+  fields <- count (fromIntegral fieldCount) (parseClassFields cpool)
+  return $ JavaClass {
+      version        = version
+    , constantPool   = cpool
+    , classFlags     = mkClassFlags accFlag
+    , thisClassName  = this
+    , superClassName = superClassName
+    , interfaceNames = interfaces
+    , fieldCount     = fieldCount
+    , fields         = fields }
+
+
+mkClassFlags flag = ClassFlags {
+  isPublic       = 0x0001 .&. flag /= 0,
+  isFinal        = 0x0010 .&. flag /= 0,
+  isSuperSpecial = 0x0020 .&. flag /= 0,
+  isInterface    = 0x0200 .&. flag /= 0,
+  isAbstract     = 0x0400 .&. flag /= 0,
+  isSynthetic    = 0x1000 .&. flag /= 0,
+  isAnnotation   = 0x2000 .&. flag /= 0,
+  isEnum         = 0x4000 .&. flag /= 0
+}
+
+
+parseClassFields :: ConstantPool -> Parser Field
+parseClassFields cpool = do
+    accFlag <- anyWord16be  -- acc flag
+    name <- extractUtf8 cpool <$> anyWord16be  -- name index
+    descriptor <- extractUtf8 cpool <$> anyWord16be  -- descriptor index
+    attrCount <- anyWord16be  -- attributeCount
+    attrs <- count (fromIntegral attrCount) (parseAttributes cpool)
+    return $ Field accFlag name descriptor attrCount attrs
+
+parseAttributes :: ConstantPool -> Parser Attribute
+parseAttributes cpool = do
+    attrName <- extractUtf8 cpool <$> anyWord16be
+    attrLen <- anyWord32be
+    info <- count (fromIntegral attrLen) anyWord8
+    return $ Attribute attrName attrLen info
+
+
+-- | constant pool
+parseConstantPool :: Parser ConstantPool
+parseConstantPool = do
+  cpoolCount <- anyWord16be
+  let cpoolLen = cpoolCount - 1
+  es <- count (fromIntegral cpoolLen) parseEntry
+  return $ listArray (1, cpoolLen) es
 
 parseEntry = do
   tag <- anyWord8
-  entries <- parseConstantPoolEntry tag
+  entries <- parseConstantPoolEntries tag
   return entries
 
-parseConstantPoolEntry :: Word8 -> Parser CPEntry
-parseConstantPoolEntry = \case
+parseConstantPoolEntries :: Word8 -> Parser ConstantPoolEntry
+parseConstantPoolEntries = \case
     1  -> parseCUtf8
-    3  -> CInt <$> anyWord32be
-    4  -> CFloat <$> anyWord32be
-    5  -> CLong <$> anyWord32be <*> anyWord32be
-    6  -> CDouble <$> anyWord32be <*> anyWord32be
-    7  -> CClass <$> anyWord16be
-    8  -> CString <$> anyWord16be
-    9  -> CFieldRef <$> anyWord16be <*> anyWord16be
-    10 -> CMethodRef <$> anyWord16be <*> anyWord16be
-    11 -> CInterfaceRef <$> anyWord16be <*> anyWord16be
-    12 -> CNameAndType <$> anyWord16be <*> anyWord16be
-    15 -> CMethodHandle <$> anyWord8 <*> anyWord16be
-    16 -> CMethodType <$> anyWord16be
-    18 -> CInvokeDynamic <$> anyWord16be <*> anyWord16be
+    3  -> ConstInt <$> anyWord32be
+    4  -> ConstFloat <$> anyWord32be
+    5  -> ConstLong <$> anyWord32be <*> anyWord32be
+    6  -> ConstDouble <$> anyWord32be <*> anyWord32be
+    7  -> ConstClass <$> anyWord16be
+    8  -> ConstString <$> anyWord16be
+    9  -> ConstFieldRef <$> anyWord16be <*> anyWord16be
+    10 -> ConstMethodRef <$> anyWord16be <*> anyWord16be
+    11 -> ConstInterfaceRef <$> anyWord16be <*> anyWord16be
+    12 -> ConstNameAndType <$> anyWord16be <*> anyWord16be
+    15 -> ConstMethodHandle <$> anyWord8 <*> anyWord16be
+    16 -> ConstMethodType <$> anyWord16be
+    18 -> ConstInvokeDynamic <$> anyWord16be <*> anyWord16be
   where
+    parseCUtf8 :: Parser ConstantPoolEntry
     parseCUtf8 = do
       len <- anyWord16be
       bs <- count (fromIntegral len) anyWord8
-      return $ CUtf8 len bs
+      return $ ConstUtf8 (utf8BytesToString bs)
 
+
+parseClassName :: ConstantPool -> Parser String
+parseClassName cpool = extractClassName cpool <$> anyWord16be
+
+extractClassName cpool idx
+  | ConstClass cix <- cpool ! idx, ConstUtf8 n <- cpool ! cix = n
+  | otherwise = error "Constant Class Info expected!"
+
+extractUtf8 :: ConstantPool -> ConstantPoolIndex -> String
+extractUtf8 cpool idx
+  | ConstUtf8 str <- cpool ! idx = str
+  | otherwise = error "Constant Utf8 expected!"
+
+utf8BytesToString :: [Word8] -> String
+utf8BytesToString [] = []
+utf8BytesToString (x : rest)
+  | x .&. 0x80 == 0 = chr (fromIntegral x) : utf8BytesToString rest
+utf8BytesToString (x : y : rest)
+  | (x .&. 0xE0 == 0xC0) && (y .&. 0xC0 == 0x80)
+  = chr i : utf8BytesToString rest
+  where i = (fromIntegral x .&. 0x1F) `shift` 6 + (fromIntegral y .&. 0x3F)
+utf8BytesToString (x : y : z : rest)
+  | (x .&. 0xF0 == 0xE0) && (y .&. 0xC0 == 0x80) && (z .&. 0xC0 == 0x80)
+  = chr i : utf8BytesToString rest
+  where i = ((fromIntegral x .&. 0x0F) `shift` 12
+         + (fromIntegral y .&. 0x3F) `shift` 6
+         + (fromIntegral z .&. 0x3F))
+utf8BytesToString _ = error "cannot parse byte array for Java String"

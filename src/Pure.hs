@@ -3,14 +3,12 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 
 module Pure where
+
 import           Control.Applicative
 import           Control.Monad.Identity
 import           Control.Monad.Trans
 import           Data.Functor.Identity
 
-myMap f xs = case xs of
-  [] -> []
-  (x: rs) -> f x : myMap f rs
 
 runState :: State s a -> s -> (a, s)
 runState st = runIdentity . runStateT st

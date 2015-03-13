@@ -59,6 +59,7 @@ executable playground
   -- Other library packages from which modules are imported.
   build-depends:
     base >=4.7
+    , vector
     , attoparsec
     , attoparsec-binary
     , resourcet
@@ -74,6 +75,8 @@ executable playground
     , QuickCheck
     , random
     , criterion
+    , array
+    , pretty-show
 
   -- Directories containing source files.
   hs-source-dirs:      src
