@@ -3,3 +3,5 @@ cabal.sandbox.config
 dist
 cabal.config
 .hsdev-cache
+*.o
+*.hi
