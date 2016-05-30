@@ -63,8 +63,16 @@ data Field = Field {
   fieldAccFlag    :: Word16,
   fieldName       :: String,
   fieldDescriptor :: String,
-  attrCount       :: Word16,
-  attrs           :: [Attribute]
+  fieldAttrCount  :: Word16,
+  fieldAttrs      :: [Attribute]
+} deriving (Show)
+
+data Method = Method {
+  methodAccFlag   :: Word16,
+  methodName      :: String,
+  methodDescriptor:: String,
+  methodAttrCount :: Word16,
+  methodAttrs     :: [Attribute]
 } deriving (Show)
 
 data Attribute = Attribute {

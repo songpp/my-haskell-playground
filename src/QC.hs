@@ -27,4 +27,5 @@ minimum xs =  foldl1 min xs
 
 prop_minimum' xs = not (null xs) ==> head (qsort xs) == minimum xs
 
+prop_stupid :: _
 prop_stupid xs = forAll (elements xs) $ \c -> c == 0

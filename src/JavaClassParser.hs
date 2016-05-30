@@ -7,7 +7,6 @@ import           Data.Array                      (Array, listArray, (!))
 import           Data.Attoparsec.Binary
 import           Data.Attoparsec.ByteString.Lazy
 import           Data.Bits
-import qualified Data.ByteString.Builder         as B
 import qualified Data.ByteString.Lazy            as L
 import           Data.Char
 import           Data.Word
@@ -15,17 +14,23 @@ import           Debug.Trace                     (trace)
 import           JvmClassTypes
 import qualified Text.Show.Pretty                as Pr
 
+testClass :: FilePath
 testClass = "Lambdas.class"
+testClassBytes :: IO L.ByteString
 testClassBytes = L.readFile testClass
 
+magicP :: Parser Word32
 magicP = word32be 0xCAFEBABE
+versinP :: Parser Version
 versinP = Version <$> anyWord16be <*> anyWord16be
 
+runParse :: L.ByteString -> JavaClass
 runParse bs = do
   case parse parseClass bs of
     e@Fail {} -> error $ Pr.ppShow e
     Done _ v -> v
 
+parseClass :: Parser JavaClass
 parseClass = do
   _ <- magicP
   version <- versinP
@@ -40,6 +45,8 @@ parseClass = do
   interfaces <- count (fromIntegral intfCount) (parseClassName cpool)
   fieldCount <- anyWord16be
   fields <- count (fromIntegral fieldCount) (parseClassFields cpool)
+  methodCount <- anyWord16be
+  methods <- count (fromIntegral methodCount) (parseClassMethods cpool)
   return $ JavaClass {
       version        = version
     , constantPool   = cpool
@@ -50,7 +57,7 @@ parseClass = do
     , fieldCount     = fieldCount
     , fields         = fields }
 
-
+mkClassFlags :: (Bits a, Num a) => a -> ClassFlags
 mkClassFlags flag = ClassFlags {
   isPublic       = 0x0001 .&. flag /= 0,
   isFinal        = 0x0010 .&. flag /= 0,
@@ -65,12 +72,21 @@ mkClassFlags flag = ClassFlags {
 
 parseClassFields :: ConstantPool -> Parser Field
 parseClassFields cpool = do
-    accFlag <- anyWord16be  -- acc flag
-    name <- extractUtf8 cpool <$> anyWord16be  -- name index
-    descriptor <- extractUtf8 cpool <$> anyWord16be  -- descriptor index
-    attrCount <- anyWord16be  -- attributeCount
+    accFlag <- anyWord16be
+    name <- extractUtf8 cpool <$> anyWord16be
+    descriptor <- extractUtf8 cpool <$> anyWord16be
+    attrCount <- anyWord16be
     attrs <- count (fromIntegral attrCount) (parseAttributes cpool)
     return $ Field accFlag name descriptor attrCount attrs
+
+parseClassMethods :: ConstantPool -> Parser Method
+parseClassMethods cpool = do
+    accFlag <- anyWord16be
+    name <- extractUtf8 cpool <$> anyWord16be
+    descriptor <- extractUtf8 cpool <$> anyWord16be
+    attrCount <- anyWord16be
+    attrs <- count (fromIntegral attrCount) (parseAttributes cpool)
+    return $ Method accFlag name descriptor attrCount attrs
 
 parseAttributes :: ConstantPool -> Parser Attribute
 parseAttributes cpool = do
@@ -88,6 +104,7 @@ parseConstantPool = do
   es <- count (fromIntegral cpoolLen) parseEntry
   return $ listArray (1, cpoolLen) es
 
+parseEntry :: Parser ConstantPoolEntry
 parseEntry = do
   tag <- anyWord8
   entries <- parseConstantPoolEntries tag
@@ -109,6 +126,7 @@ parseConstantPoolEntries = \case
     15 -> ConstMethodHandle <$> anyWord8 <*> anyWord16be
     16 -> ConstMethodType <$> anyWord16be
     18 -> ConstInvokeDynamic <$> anyWord16be <*> anyWord16be
+    _  -> error "impossible const val"
   where
     parseCUtf8 :: Parser ConstantPoolEntry
     parseCUtf8 = do
@@ -120,6 +138,7 @@ parseConstantPoolEntries = \case
 parseClassName :: ConstantPool -> Parser String
 parseClassName cpool = extractClassName cpool <$> anyWord16be
 
+extractClassName :: Array Word16 ConstantPoolEntry -> Word16 -> String
 extractClassName cpool idx
   | ConstClass cix <- cpool ! idx, ConstUtf8 n <- cpool ! cix = n
   | otherwise = error "Constant Class Info expected!"
