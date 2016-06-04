@@ -94,7 +94,7 @@ deleteKey k (Node k1 v l r)
   | otherwise = Node k1 v (deleteKey k l) r
 
 
-
+-- inorder
 keys :: Monad m => BSTree k v -> (k -> m b) -> m [b]
 keys Nil f = return []
 keys (Node k v l r) f = do
@@ -102,9 +102,6 @@ keys (Node k v l r) f = do
   x <- f k
   rs <- keys r f
   return (ls ++ (x : rs))
-
-printKeys :: (Show k) => BSTree k v -> IO ()
-printKeys t = void (keys t print)
 
 instance Foldable (BSTree k) where
   foldr f b Nil = b
@@ -116,14 +113,15 @@ instance Functor (BSTree k) where
 
 instance Traversable (BSTree k) where
   traverse f Nil = pure Nil
-  traverse f (Node k v l r) = let !left = traverse f l
-                                  !m = f v
-                               in Node k <$> m <*> left <*> traverse f r
+  traverse f (Node k v l r) = Node k <$> f v <*> traverse f l <*> traverse f r
 
 
 --
 --
 --
+
+printKeys :: (Show k) => BSTree k v -> IO ()
+printKeys t = void (keys t print)
 
 t = foldl (\t b -> insert b b t) Nil ([100, 90..10] ++ [13, 21..99])
 -- printKeys t
