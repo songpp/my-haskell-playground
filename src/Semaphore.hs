@@ -9,8 +9,8 @@ module Semaphore
     ) where
 
 
-import Data.IORef
 import Control.Applicative
+import Data.IORef
 
 data Semaphore = MkSemaphore (IORef Int)
 newtype Timeout = Timeout Integer

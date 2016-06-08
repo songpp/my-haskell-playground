@@ -1,10 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module QC where
 
-import           Data.List       hiding (head, minimum)
-import           Prelude         hiding (head, minimum)
-import           System.Random   (mkStdGen)
-import           Test.QuickCheck
+import Data.List       hiding (head, minimum)
+import Prelude         hiding (head, minimum)
+import System.Random   (mkStdGen)
+import Test.QuickCheck
 
 
 qsort :: Ord a => [a] -> [a]
@@ -27,5 +27,5 @@ minimum xs =  foldl1 min xs
 
 prop_minimum' xs = not (null xs) ==> head (qsort xs) == minimum xs
 
-prop_stupid :: _
+prop_stupid :: [a] -> Bool
 prop_stupid xs = forAll (elements xs) $ \c -> c == 0

@@ -2,17 +2,17 @@
 {-# LANGUAGE StandaloneDeriving #-}
 module JavaClassParser where
 
-import           Control.Applicative             ((<$>), (<*>))
-import           Data.Array                      (Array, listArray, (!))
-import           Data.Attoparsec.Binary
-import           Data.Attoparsec.ByteString.Lazy
-import           Data.Bits
-import qualified Data.ByteString.Lazy            as L
-import           Data.Char
-import           Data.Word
-import           Debug.Trace                     (trace)
-import           JvmClassTypes
-import qualified Text.Show.Pretty                as Pr
+import Control.Applicative ((<$>), (<*>))
+import Data.Array (Array, listArray, (!))
+import Data.Attoparsec.Binary
+import Data.Attoparsec.ByteString.Lazy
+import Data.Bits
+import qualified Data.ByteString.Lazy as L
+import Data.Char
+import Data.Word
+import Debug.Trace (trace)
+import JvmClassTypes
+import qualified Text.Show.Pretty as Pr
 
 testClass :: FilePath
 testClass = "Lambdas.class"

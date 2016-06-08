@@ -4,7 +4,7 @@
 module BinarySearchTree where
 
 import Control.Monad (void)
-import Data.Maybe    (isJust)
+import Data.Maybe (isJust)
 
 -- | A Binary Search Tree
 data BSTree k v where
@@ -137,4 +137,3 @@ newtype Product = Product Integer deriving (Show, Eq, Ord)
 instance Monoid Product where
   mempty = Product 1
   mappend (Product x) (Product y) = Product (x * y)
-

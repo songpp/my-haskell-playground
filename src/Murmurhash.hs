@@ -1,25 +1,68 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns             #-}
+{-# LANGUAGE CPP                      #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE OverloadedStrings        #-}
 module Murmurhash where
 
-import Control.Monad (replicateM )
-import Data.Serialize.Get
-    ( runGet
-    , getWord32le
-    )
-import Data.Bits
-    ( shiftR
-    , rotateL
-    , xor
-    )
-import qualified Data.ByteString as BS
-    ( ByteString
-    , length
-    , drop
-    , append
-    , replicate
-    )
+import Control.Monad (replicateM)
+
+
+import Data.ByteString (ByteString, packCString, useAsCStringLen)
+import qualified Data.ByteString as BS (ByteString, append, drop, length, replicate)
+import Data.Serialize.Get (getWord32le, runGet)
+
+import Data.Bits (rotateL, shiftR, xor)
 import Data.List (foldl')
 import Data.Word (Word32)
+import Foreign.C.String (CString)
+import Foreign.C.Types (CChar (..), CInt (..), CSize (..), CUInt (..))
+import Foreign.ForeignPtr (withForeignPtr)
+import Foreign.Marshal.Alloc (alloca)
+import Foreign.Marshal.Array (allocaArray, withArrayLen)
+import Foreign.Ptr (Ptr, castPtr, nullPtr, plusPtr)
+import Foreign.Storable (Storable, peek, poke, sizeOf)
+import System.IO.Unsafe (unsafePerformIO)
+
+import Data.Memory.ExtendedWords
+
+#include "HsBaseConfig.h"
+
+foreign import ccall unsafe "murmur3.h MurmurHash3_x86_32" murmur3X86Hash32
+    :: Ptr () -> CInt -> CUInt -> Ptr Word32 -> IO ()
+
+foreign import ccall unsafe "murmur3.h MurmurHash3_x86_128" murmur3X86Hash128
+    :: Ptr () -> CInt -> CUInt -> Ptr Word128 -> IO ()
+
+foreign import ccall unsafe "murmur3.h MurmurHash3_x64_128" murmur3X64Hash128
+    :: Ptr () -> CInt -> CUInt -> Ptr Word128 -> IO ()
+
+
+type Seed = Word32
+
+data HashResult = SingleWord32 Word32
+                | FourWord32 Word32 Word32 Word32 Word32
+                | TwoWord64 Word64 Word64
+
+
+murmur3x86'32 :: ByteString -> Seed -> Word32
+murmur3x86'32 value seed = unsafePerformIO . alloca $ \out ->
+    useAsCStringLen value $ \(ptr, len) -> do
+        murmur3X86Hash32 (castPtr ptr) (fromIntegral len) (fromIntegral seed) (castPtr out)
+        peek out
+
+murmur3x86'128 :: ByteString -> Seed -> Word128
+murmur3x86'128 = undefined
+
+murmur3x64'128 :: ByteString -> Seed -> Word128
+murmur3x64'128 = undefined
+
+
+callMurmur3Hash32 :: IO Word32
+callMurmur3Hash32 = alloca $ \out ->
+    useAsCStringLen "Hello, world!" $ \(c, size) -> do
+        murmur3X86Hash32 (castPtr c) (fromIntegral size) 4321 (castPtr out)
+        peek out
+
 
 -- | MurmurHash3 (x86_32). For more details, see
 -- <http://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp>

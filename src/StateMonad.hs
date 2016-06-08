@@ -3,10 +3,10 @@
 {-# LANGUAGE StandaloneDeriving         #-}
 module StateMonad where
 
-import           Control.Applicative
-import           Control.Monad.Identity
-import           Control.Monad.Trans
-import           Data.Functor.Identity
+import Control.Applicative
+import Control.Monad.Identity
+import Control.Monad.Trans
+import Data.Functor.Identity
 
 
 runState :: State s a -> s -> (a, s)

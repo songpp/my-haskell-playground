@@ -1,7 +1,7 @@
 module JvmClassTypes where
 
-import           Data.Array (Array)
-import           Data.Word
+import Data.Array (Array)
+import Data.Word
 
 type ConstantPoolIndex = Word16
 type ConstantPool = Array ConstantPoolIndex ConstantPoolEntry
@@ -68,11 +68,11 @@ data Field = Field {
 } deriving (Show)
 
 data Method = Method {
-  methodAccFlag   :: Word16,
-  methodName      :: String,
+  methodAccFlag    :: Word16,
+  methodName       :: String,
   methodDescriptor:: String,
-  methodAttrCount :: Word16,
-  methodAttrs     :: [Attribute]
+  methodAttrCount  :: Word16,
+  methodAttrs      :: [Attribute]
 } deriving (Show)
 
 data Attribute = Attribute {

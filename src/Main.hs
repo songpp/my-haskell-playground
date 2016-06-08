@@ -1,15 +1,15 @@
 {-# LANGUAGE GADTs #-}
 module Main where
 
-import JavaClassParser
-import Data.Vector as V
-import Control.Monad
 import Control.Concurrent
-import Data.IORef
-import Text.Printf (printf)
+import Control.Monad
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as L
+import Data.IORef
+import Data.Vector as V
+import JavaClassParser
 import Semaphore
+import Text.Printf (printf)
 
 {-
 main :: IO ()
