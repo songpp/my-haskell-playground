@@ -39,10 +39,6 @@ foreign import ccall unsafe "murmur3.h MurmurHash3_x64_128" murmur3X64Hash128
 
 type Seed = Word32
 
-data HashResult = SingleWord32 Word32
-                | FourWord32 Word32 Word32 Word32 Word32
-                | TwoWord64 Word64 Word64
-
 
 murmur3x86'32 :: ByteString -> Seed -> Word32
 murmur3x86'32 value seed = unsafePerformIO . alloca $ \out ->
