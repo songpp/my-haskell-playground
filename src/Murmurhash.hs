@@ -5,14 +5,12 @@
 module Murmurhash where
 
 import Control.Monad (replicateM)
-
-
-import Data.ByteString (ByteString, packCString, useAsCStringLen)
-import qualified Data.ByteString as BS (ByteString, append, drop, length, replicate)
-import Data.Serialize.Get (getWord32le, runGet)
-
 import Data.Bits (rotateL, shiftR, xor)
+import qualified Data.ByteString as BS (ByteString, append, drop, length,
+                                        packCString, replicate, useAsCStringLen)
 import Data.List (foldl')
+import Data.Memory.ExtendedWords
+import Data.Serialize.Get (getWord32le, runGet)
 import Data.Word (Word32)
 import Foreign.C.String (CString)
 import Foreign.C.Types (CChar (..), CInt (..), CSize (..), CUInt (..))
@@ -22,8 +20,6 @@ import Foreign.Marshal.Array (allocaArray, withArrayLen)
 import Foreign.Ptr (Ptr, castPtr, nullPtr, plusPtr)
 import Foreign.Storable (Storable, peek, poke, sizeOf)
 import System.IO.Unsafe (unsafePerformIO)
-
-import Data.Memory.ExtendedWords
 
 #include "HsBaseConfig.h"
 
@@ -39,23 +35,22 @@ foreign import ccall unsafe "murmur3.h MurmurHash3_x64_128" murmur3X64Hash128
 
 type Seed = Word32
 
-
-murmur3x86'32 :: ByteString -> Seed -> Word32
+murmur3x86'32 :: BS.ByteString -> Seed -> Word32
 murmur3x86'32 value seed = unsafePerformIO . alloca $ \out ->
-    useAsCStringLen value $ \(ptr, len) -> do
+    BS.useAsCStringLen value $ \(ptr, len) -> do
         murmur3X86Hash32 (castPtr ptr) (fromIntegral len) (fromIntegral seed) (castPtr out)
         peek out
 
-murmur3x86'128 :: ByteString -> Seed -> Word128
+murmur3x86'128 :: BS.ByteString -> Seed -> Word128
 murmur3x86'128 = undefined
 
-murmur3x64'128 :: ByteString -> Seed -> Word128
+murmur3x64'128 :: BS.ByteString -> Seed -> Word128
 murmur3x64'128 = undefined
 
 
 callMurmur3Hash32 :: IO Word32
 callMurmur3Hash32 = alloca $ \out ->
-    useAsCStringLen "Hello, world!" $ \(c, size) -> do
+    BS.useAsCStringLen "Hello, world!" $ \(c, size) -> do
         murmur3X86Hash32 (castPtr c) (fromIntegral size) 4321 (castPtr out)
         peek out
 
@@ -102,3 +97,24 @@ murmur3 nHashSeed bs =
     -- Constants
     c1 = 0xcc9e2d51
     c2 = 0x1b873593
+
+
+{--
+
+benchmarking Murmurhash3/mm3 haskell
+time                 154.0 ns   (151.1 ns .. 157.1 ns)
+                     0.998 R²   (0.997 R² .. 0.999 R²)
+mean                 151.7 ns   (150.4 ns .. 153.5 ns)
+std dev              5.293 ns   (4.151 ns .. 7.160 ns)
+variance introduced by outliers: 53% (severely inflated)
+
+benchmarking Murmurhash3/mm32 binding
+time                 43.04 ns   (42.49 ns .. 43.73 ns)
+                     0.999 R²   (0.998 R² .. 0.999 R²)
+mean                 44.23 ns   (43.66 ns .. 44.95 ns)
+std dev              2.188 ns   (1.690 ns .. 2.973 ns)
+variance introduced by outliers: 71% (severely inflated)
+
+Benchmark bench: FINISH
+
+--}

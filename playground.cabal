@@ -111,7 +111,7 @@ test-suite test
 
 
 benchmark bench
-  build-depends:    base, playground, criterion, QuickCheck, bytestring
+  build-depends:    base, playground, criterion, QuickCheck, bytestring, hspec
   default-language: Haskell2010
   -- ghc-options:      -Wall
   hs-source-dirs:   benchmarks

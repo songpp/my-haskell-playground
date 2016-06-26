@@ -1,31 +1,34 @@
-{-# LANGUAGE LambdaCase         #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 module JavaClassParser where
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Array (Array, listArray, (!))
+import Data.Array          (Array, listArray, (!))
+
 import Data.Attoparsec.Binary
 import Data.Attoparsec.ByteString.Lazy
 import Data.Bits
-import qualified Data.ByteString.Lazy as L
 import Data.Char
 import Data.Word
-import Debug.Trace (trace)
+import Debug.Trace   (trace)
 import JvmClassTypes
-import qualified Text.Show.Pretty as Pr
+
+import qualified Data.ByteString.Lazy as L
+import qualified Text.Show.Pretty     as Pr
 
 testClass :: FilePath
 testClass = "Lambdas.class"
+
 testClassBytes :: IO L.ByteString
 testClassBytes = L.readFile testClass
 
 magicP :: Parser Word32
 magicP = word32be 0xCAFEBABE
+
 versinP :: Parser Version
 versinP = Version <$> anyWord16be <*> anyWord16be
 
 runParse :: L.ByteString -> JavaClass
-runParse bs = do
+runParse bs =
   case parse parseClass bs of
     e@Fail {} -> error $ Pr.ppShow e
     Done _ v -> v
@@ -47,7 +50,7 @@ parseClass = do
   fields <- count (fromIntegral fieldCount) (parseClassFields cpool)
   methodCount <- anyWord16be
   methods <- count (fromIntegral methodCount) (parseClassMethods cpool)
-  return $ JavaClass {
+  return JavaClass {
       version        = version
     , constantPool   = cpool
     , classFlags     = mkClassFlags accFlag
@@ -70,23 +73,22 @@ mkClassFlags flag = ClassFlags {
 }
 
 
+type ClassItemCtor b = Word16 -> String -> String -> Word16 -> [Attribute] -> b
+
 parseClassFields :: ConstantPool -> Parser Field
-parseClassFields cpool = do
-    accFlag <- anyWord16be
-    name <- extractUtf8 cpool <$> anyWord16be
-    descriptor <- extractUtf8 cpool <$> anyWord16be
-    attrCount <- anyWord16be
-    attrs <- count (fromIntegral attrCount) (parseAttributes cpool)
-    return $ Field accFlag name descriptor attrCount attrs
+parseClassFields = parseClassItems Field
 
 parseClassMethods :: ConstantPool -> Parser Method
-parseClassMethods cpool = do
+parseClassMethods = parseClassItems Method
+
+parseClassItems :: ClassItemCtor b -> ConstantPool -> Parser b
+parseClassItems ctor cpool = do
     accFlag <- anyWord16be
     name <- extractUtf8 cpool <$> anyWord16be
     descriptor <- extractUtf8 cpool <$> anyWord16be
     attrCount <- anyWord16be
     attrs <- count (fromIntegral attrCount) (parseAttributes cpool)
-    return $ Method accFlag name descriptor attrCount attrs
+    return $ ctor accFlag name descriptor attrCount attrs
 
 parseAttributes :: ConstantPool -> Parser Attribute
 parseAttributes cpool = do
@@ -107,8 +109,7 @@ parseConstantPool = do
 parseEntry :: Parser ConstantPoolEntry
 parseEntry = do
   tag <- anyWord8
-  entries <- parseConstantPoolEntries tag
-  return entries
+  parseConstantPoolEntries tag
 
 parseConstantPoolEntries :: Word8 -> Parser ConstantPoolEntry
 parseConstantPoolEntries = \case
@@ -159,7 +160,7 @@ utf8BytesToString (x : y : rest)
 utf8BytesToString (x : y : z : rest)
   | (x .&. 0xF0 == 0xE0) && (y .&. 0xC0 == 0x80) && (z .&. 0xC0 == 0x80)
   = chr i : utf8BytesToString rest
-  where i = ((fromIntegral x .&. 0x0F) `shift` 12
+  where i = (fromIntegral x .&. 0x0F) `shift` 12
          + (fromIntegral y .&. 0x3F) `shift` 6
-         + (fromIntegral z .&. 0x3F))
+         + (fromIntegral z .&. 0x3F)
 utf8BytesToString _ = error "cannot parse byte array for Java String"
