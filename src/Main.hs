@@ -11,6 +11,8 @@ import JavaClassParser
 import Semaphore
 import Text.Printf (printf)
 
+import Data.Number.Fixed
+
 {-
 main :: IO ()
 main = do

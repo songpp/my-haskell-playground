@@ -1,21 +1,22 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE GADTs           #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Monads where
 
+import Control.Lens.TH
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Trans
 import Control.Monad.Writer
-import Control.Monad.Reader
-import Control.Lens.TH
 import Data.Default
 
-import System.Directory
-import System.FilePath      ((</>))
 import GHC.Generics
+import System.Directory (doesDirectoryExist, getDirectoryContents)
+import System.FilePath ((</>))
 
 
 listDirectory :: FilePath -> IO [FilePath]
-listDirectory = liftM (filter notDots) . getDirectoryContents
+listDirectory = fmap (filter notDots) . getDirectoryContents
   where
     notDots p = p /= "." && p /= ".."
 
@@ -31,7 +32,7 @@ countEntries p = do
 
 
 data Config a = Config {
-  _appKey :: String,
+  _appKey   :: String,
   _logLevel :: String
 } deriving (Show, Eq)
 

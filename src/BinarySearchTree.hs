@@ -23,7 +23,7 @@ insert k a Nil = singleton k a
 insert k a (Node !k1 v l r)
   | k == k1   = Node k a l r
   | k >  k1   = Node k1 v l (insert k a r)
-  | otherwise =  Node k1 v (insert k a l) r
+  | otherwise = Node k1 v (insert k a l) r
 
 contains :: Ord k => k -> BSTree k v -> Bool
 contains k = isJust . search k
@@ -50,16 +50,16 @@ minKey (Node _ _ l _)   = minKey l
 maxKey :: Ord k => BSTree k v -> Maybe (k, v)
 maxKey Nil = Nothing
 maxKey (Node k v _ Nil) = Just (k,v)
-maxKey (Node _ _ _ r) = maxKey r
+maxKey (Node _ _ _ r)   = maxKey r
 
 
 floorKey :: Ord k => k -> BSTree k v -> Maybe (k, v)
 floorKey k Nil = Nothing
-floorKey k t = go k t Nothing
+floorKey k t   = go k t Nothing
   where
     go k Nil p = p
     go k n@(Node k1 v l r) p
-      | k < k1 = p
+      | k <  k1 = p
       | k >= k1 = go k r (Just (k1, v))
 
 ceilingKey :: Ord k => k -> BSTree k v-> Maybe (k, v)
@@ -68,7 +68,7 @@ ceilingKey k t = go k t Nothing
   where
     go k Nil p = p
     go k n@(Node k1 v l r) p
-      | k1 < k = go k r Nothing
+      | k1 <  k = go k r Nothing
       | k1 >= k = Just (k1, v)
 
 deleteMinKey :: Ord k => BSTree k v -> BSTree k v
@@ -82,15 +82,15 @@ deleteKey k Nil = Nil
 deleteKey k (Node k1 v Nil Nil) = Nil
 deleteKey k t@(Node k1 v Nil r)
   | k == k1 = r
-  | k < k1  = t
+  | k <  k1 = t
   | otherwise = Node k1 v Nil (deleteKey k r)
 deleteKey k t@(Node k1 v l Nil)
   | k == k1 = l
-  | k > k1  = t
+  | k >  k1 = t
   | otherwise = Node k1 v (deleteKey k l) Nil
 deleteKey k (Node k1 v l r)
   | k == k1 = let Node k' v' _ _ = minNode r in Node k' v' l (deleteMinKey r)
-  | k > k1  = Node k1 v l (deleteKey k r)
+  | k >  k1 = Node k1 v l (deleteKey k r)
   | otherwise = Node k1 v (deleteKey k l) r
 
 
@@ -99,7 +99,7 @@ keys :: Monad m => BSTree k v -> (k -> m b) -> m [b]
 keys Nil f = return []
 keys (Node k v l r) f = do
   ls <- keys l f
-  x <- f k
+  x  <- f k
   rs <- keys r f
   return (ls ++ (x : rs))
 

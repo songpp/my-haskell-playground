@@ -1,9 +1,9 @@
 module BloomFilter where
 
 
-import Data.Word
 import Data.Array.ST (STUArray, runSTUArray)
 import Data.Array.Unboxed (UArray)
+import Data.Word
 
 import Control.Monad (liftM)
 import Control.Monad.ST (ST, runST)
@@ -11,9 +11,7 @@ import qualified Data.Array.Base as ST
 import Data.Array.MArray (getBounds, newArray, readArray, writeArray)
 import Prelude hiding (elem, length, notElem)
 
-
 import Murmurhash
-
 
 data Bloom a = B {
       blmHash  :: a -> [Word32]
@@ -21,7 +19,7 @@ data Bloom a = B {
     }
 
 data MutBloom s a = MB {
-      mutHash :: a -> [Word32]
+      mutHash  :: a -> [Word32]
     , mutArray :: STUArray s Word32 Bool
     }
 
@@ -64,7 +62,3 @@ fromList hash numBits values = runST $ do
     mb <- new hash numBits
     mapM_ (insert mb) values
     B hash `liftM` ST.unsafeFreeze (mutArray mb)
-
-
-
-

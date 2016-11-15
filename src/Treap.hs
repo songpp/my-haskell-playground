@@ -52,7 +52,7 @@ treapDelete key t@(Br p k l r)
     rotateDown (Br _ _ Nil Nil) = Nil
     rotateDown b@(Br _ _ Nil Br{}) = rotateLeft rotateDown b
     rotateDown b@(Br _ _ Br{} Nil) = rotateRight rotateDown b
-    rotateDown b@(Br{}) = rotateRight rotateDown b
+    rotateDown b@Br{} = rotateRight rotateDown b
 
 rotateRight , rotateLeft:: (Treap p k -> Treap p k) -> Treap p k -> Treap p k
 rotateRight f (Br p k (Br p' k' l' r') r) = Br p' k' l' (f (Br p k r' r))

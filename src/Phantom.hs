@@ -19,3 +19,4 @@ readCfg (Config ref) = readIORef ref
 
 writeCfg :: SafeCfg ReadWrite v -> v -> IO ()
 writeCfg (Config ref) v = writeIORef ref v
+
