@@ -20,6 +20,7 @@ jobs:
     - uses: mstksg/setup-stack@v2
     - name: Install dependencies
       run: |
+        sudo apt-get install libmpfr-dev libmpfr-doc libmpfr4 libmpfr4-dbg
         stack setup
     - name: Build
       run: |
